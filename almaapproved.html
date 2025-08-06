@@ -101,77 +101,73 @@
   </div>
 
   <script>
+    // Grade mapping: high score = healthier
     function getLetterGrade(score) {
-      if (score <= 20) return 'A';
-      else if (score <= 40) return 'B';
-      else if (score <= 60) return 'C';
-      else if (score <= 80) return 'D';
+      if (score >= 80) return 'A';
+      else if (score >= 60) return 'B';
+      else if (score >= 40) return 'C';
+      else if (score >= 20) return 'D';
       else return 'E';
     }
 
     document.getElementById('file-input').addEventListener('change', function(e) {
-      var file = e.target.files[0];
+      const file = e.target.files[0];
       if (!file) return;
-
-      var reader = new FileReader();
+      const reader = new FileReader();
       reader.onload = function() {
         Quagga.decodeSingle({
           src: reader.result,
           numOfWorkers: 0,
-          decoder: { readers: [ 'ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader' ] }
+          decoder: {
+            readers: ['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader']
+          }
         }, function(result) {
-          var resultDiv = document.getElementById('result');
+          const resultDiv = document.getElementById('result');
           resultDiv.innerHTML = '';
-
           if (result && result.codeResult) {
-            var code = result.codeResult.code;
-            fetch('https://world.openfoodfacts.org/api/v0/product/' + code + '.json')
+            const code = result.codeResult.code;
+            fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`)
               .then(resp => resp.json())
               .then(data => {
                 if (data.status === 1) {
-                  var prod = data.product,
-                      name = prod.product_name || 'Unknown product',
-                      imgUrl = prod.image_url || '',
-                      grade = (prod.nutriscore_grade || '').toLowerCase(),
-                      score = prod.nutriscore_score;
+                  const prod = data.product;
+                  const name = prod.product_name || 'Unknown product';
+                  const imgUrl = prod.image_url || '';
+                  const nutriments = prod.nutriments || {};
+                  // Determine base score (API or fallback)
+                  let apiScore = parseFloat(prod.nutriscore_score);
+                  const hasApiScore = !isNaN(apiScore);
+                  let score = hasApiScore
+                    ? apiScore
+                    : Math.round(Math.max(0, Math.min(100,
+                        100 - (
+                          (parseFloat(nutriments['sugars_100g']) || 0) * 2 +
+                          (parseFloat(nutriments['saturated-fat_100g']) || 0) * 3 +
+                          (parseFloat(nutriments['salt_100g']) || 0) * 5 -
+                          (parseFloat(nutriments['fiber_100g']) || 0) * 2
+                        )
+                      )));
+                  const letter = getLetterGrade(score);
+                  const nsImg = `https://static.openfoodfacts.org/images/misc/nutriscore-${letter.toLowerCase()}.svg`;
 
-                  var html = '<div class="product-card">';
-                  if (imgUrl) html += '<img src="' + imgUrl + '" alt="' + name + '">';
-                  html += '<div class="product-details">'
-                       + '<h3>' + name + '</h3>'
-                       + '<p><strong>Barcode:</strong> ' + code + '</p>'
-                       + '</div>';
-
-                  var validGrades = ['a','b','c','d','e'];
-                  if (validGrades.includes(grade) && typeof score === 'number') {
-                    var nsImg = 'https://static.openfoodfacts.org/images/misc/nutriscore-' + grade + '.svg';
-                    html += '<div class="nutriscore">'
-                         + '<img src="' + nsImg + '" alt="Nutri-Score ' + grade.toUpperCase() + '">'
-                         + '<p>Score: ' + score + '/100</p>'
-                         + '<p>A-E Score: ' + grade.toUpperCase() + '</p>'
-                         + '</div>';
-                  } else {
-                    var n = prod.nutriments || {},
-                        sugar = parseFloat(n['sugars_100g']) || 0,
-                        satFat = parseFloat(n['saturated-fat_100g']) || 0,
-                        salt = parseFloat(n['salt_100g']) || 0,
-                        fiber = parseFloat(n['fiber_100g']) || 0,
-                        calcScore = Math.round(Math.max(0, Math.min(100, 100 - (sugar*2 + satFat*3 + salt*5 - fiber*2)))),
-                        letter = getLetterGrade(calcScore);
-
-                    html += '<div class="calculated-score">'
-                         + '<p>🧮 Calculated Health Score: ' + calcScore + '/100</p>'
-                         + '<p>A-E Score: ' + letter + '</p>'
-                         + '</div>';
-                  }
-
-                  html += '</div>';
+                  let html = `<div class="product-card">`;
+                  if (imgUrl) html += `<img src="${imgUrl}" alt="${name}">`;
+                  html += `<div class="product-details">
+                            <h3>${name}</h3>
+                            <p><strong>Barcode:</strong> ${code}</p>
+                          </div>`;
+                  html += `<div class="nutriscore">
+                             <img src="${nsImg}" alt="Nutri-Score ${letter}">
+                             <p>Score: ${score}/100</p>
+                             <p>A-E Score: ${letter}</p>
+                           </div>`;
+                  html += `</div>`;
                   resultDiv.innerHTML = html;
                 } else {
                   resultDiv.innerHTML = '<p>❌ Product not found.</p>';
                 }
               })
-              .catch(err => resultDiv.innerHTML = '<p>❌ Error: ' + err + '</p>');
+              .catch(err => resultDiv.innerHTML = `<p>❌ Error: ${err}</p>`);
           } else {
             resultDiv.innerHTML = '<p>⚠️ No barcode detected.</p>';
           }
