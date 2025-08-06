@@ -17,25 +17,44 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; background-color: var(--bg-color); display: flex; justify-content: center; padding: 1rem; }
     .container { width: 100%; max-width: 480px; background-color: var(--card-bg); border: 2px solid var(--accent-color); border-radius: 12px; padding: 1rem; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; }
-    .approved-heading { font-size: 1.5rem; font-family: 'Brush Script MT', cursive; color: var(--accent-color); margin-bottom: 0.5rem; }
+
+    /* Heading styling */
+    .approved-heading { font-size: 2rem; font-family: Arial, sans-serif; font-weight: bold; color: var(--accent-color); margin-bottom: 0.5rem; }
     .sub-heading { font-size: 1.1rem; color: var(--primary-color); margin-bottom: 1rem; }
-    #file-input { width: 100%; padding: 0.75rem; background-color: var(--accent-color); color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 1rem; }
-    #file-input:hover { background-color: #ff5252; }
+
+    /* File input styled as button */
+    #file-input { display: none; }
+    #file-label { display: block; width: 100%; padding: 0.75rem; background-color: var(--accent-color); color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 1rem; text-align: center; }
+    #file-label:hover { background-color: #ff5252; }
+
     #result { margin-top: 1rem; }
-    .product-card { background: var(--bg-color); border: 1px solid var(--accent-color); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; text-align: left; }
-    .product-card img { width: 100%; height: auto; border-radius: 8px; display: block; margin-bottom: 0.75rem; }
+    .product-card { background: var(--bg-color); border: 1px solid var(--accent-color); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; text-align: center; }
+
+    /* Nutriscore and score styling */
+    .nutriscore { margin-bottom: 0.75rem; }
+    .nutriscore img { width: 120px; margin: 0 auto 0.5rem; display: block; }
+    .nutriscore .score { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin: 0.25rem 0; }
+    .nutriscore .letter { font-size: 1.8rem; font-weight: bold; color: var(--accent-color); margin: 0.25rem 0; }
+
+    /* Fixed small product image */
+    .product-card img.product-image { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; margin: 0.5rem auto; }
+
     .product-details h3 { font-size: 1rem; color: var(--text-color); margin-bottom: 0.5rem; }
-    .nutriscore { margin-top: 0.75rem; text-align: center; }
-    .nutriscore img { width: 60px; margin-bottom: 0.25rem; }
-    .nutriscore p { font-size: 0.9rem; margin: 0.25rem 0; color: var(--primary-color); font-weight: bold; }
-    .nutrition-facts { margin-top: 1rem; border-top: 1px solid #ddd; padding-top: 0.75rem; font-size: 0.9rem; color: var(--text-color); }
+    .product-details p { font-size: 0.9rem; color: var(--text-color); margin-bottom: 0.5rem; }
+
+    .nutrition-facts { margin-top: 1rem; border-top: 1px solid #ddd; padding-top: 0.75rem; font-size: 0.9rem; color: var(--text-color); text-align: left; }
     .nutrition-facts h4 { margin-bottom: 0.5rem; font-size: 1rem; color: var(--primary-color); }
     .nutrition-facts ul { list-style: none; }
     .nutrition-facts li { margin-bottom: 0.25rem; }
+
     @media (max-width: 600px) {
-      .approved-heading { font-size: 1.3rem; }
+      .approved-heading { font-size: 1.6rem; }
       .sub-heading { font-size: 1rem; }
-      #file-input { font-size: 0.95rem; }
+      #file-label { font-size: 0.95rem; }
+      .nutriscore img { width: 100px; }
+      .nutriscore .score { font-size: 1.3rem; }
+      .nutriscore .letter { font-size: 1.5rem; }
+      .product-card img.product-image { width: 100px; height: 100px; }
     }
   </style>
 </head>
@@ -43,7 +62,8 @@
   <div class="container">
     <h1 class="approved-heading">Alma Approved</h1>
     <div class="sub-heading">📷 Barcode & Nutrition</div>
-    <input type="file" id="file-input" accept="image/*" />
+    <label for="file-input" id="file-label">Scan/Upload a barcode</label>
+    <input type="file" id="file-input" accept="image/*" capture="environment" />
     <div id="result"></div>
   </div>
   <script>
@@ -61,7 +81,7 @@
       reader.onload = function() {
         Quagga.decodeSingle({ src: reader.result, numOfWorkers: 0, decoder: { readers: ['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader'] } }, function(result) {
           const resultDiv = document.getElementById('result'); resultDiv.innerHTML = '';
-          const headingEl = document.querySelector('.approved-heading'); headingEl.textContent = 'Alma Approved';
+          const headingEl = document.querySelector('.approved-heading');
           if (result && result.codeResult) {
             const code = result.codeResult.code;
             fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`).then(res => res.json()).then(data => {
@@ -79,11 +99,18 @@
               const nsImg = `https://static.openfoodfacts.org/images/misc/nutriscore-${letter.toLowerCase()}.svg`;
 
               let html = `<div class="product-card">`;
-              if(imgUrl) html+=`<img src="${imgUrl}" alt="${name}">`;
-              html+=`<div class="product-details"><h3>${name}</h3><p><strong>Barcode:</strong> ${code}</p></div>`;
-              html+=`<div class="nutriscore"><img src="${nsImg}" alt="${letter}"><p>Score: ${score}/100</p><p>A-E: ${letter}</p></div>`;
-              // Nutrition facts list
-              html+=`<div class="nutrition-facts"><h4>Nutrition per 100g</h4><ul>`;
+              // Nutriscore & Score above image
+              html += `<div class="nutriscore">`;
+              html += `<img src="${nsImg}" alt="${letter}">`;
+              html += `<div class="score">Score: ${score}/100</div>`;
+              html += `<div class="letter">Grade: ${letter}</div>`;
+              html += `</div>`;
+              // Product Image
+              if(imgUrl) html += `<img class="product-image" src="${imgUrl}" alt="${name}">`;
+              // Product details
+              html += `<div class="product-details"><h3>${name}</h3><p><strong>Barcode:</strong> ${code}</p></div>`;
+              // Nutrition facts
+              html += `<div class="nutrition-facts"><h4>Nutrition per 100g</h4><ul>`;
               const facts = {
                 'Energy (kcal)': n['energy-kcal_100g'],
                 'Fat (g)': n['fat_100g'],
@@ -94,15 +121,16 @@
                 'Protein (g)': n['proteins_100g'],
                 'Salt (g)': n['salt_100g']
               };
-              for(let key in facts){
+              for(let key in facts) {
                 let val = facts[key];
-                if(val!==undefined) html+=`<li><strong>${key}:</strong> ${parseFloat(val).toFixed(1)}</li>`;
+                if(val != null) html += `<li><strong>${key}:</strong> ${parseFloat(val).toFixed(1)}</li>`;
               }
-              html+=`</ul></div></div>`;
+              html += `</ul></div></div>`;
               resultDiv.innerHTML = html;
-            }).catch(err=>resultDiv.innerHTML=`<p>❌ Error: ${err}</p>`);
+            }).catch(err => resultDiv.innerHTML = `<p>❌ Error: ${err}</p>`);
           } else {
-            resultDiv.innerHTML = '<p>⚠️ No barcode detected.</p>'; }
+            resultDiv.innerHTML = '<p>⚠️ No barcode detected.</p>';
+          }
         });
       };
       reader.readAsDataURL(file);
