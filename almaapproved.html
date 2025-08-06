@@ -22,16 +22,10 @@
     .approved-heading { font-size: 2rem; font-family: Arial, sans-serif; font-weight: bold; color: var(--accent-color); margin-bottom: 0.5rem; }
     .sub-heading { font-size: 1.1rem; color: var(--primary-color); margin-bottom: 1rem; }
 
-    /* Buttons */
+    /* Button */
     .btn { display: block; width: 100%; padding: 0.75rem; background-color: var(--accent-color); color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 0.75rem; }
     .btn:hover { background-color: #ff5252; }
     input[type="file"] { display: none; }
-
-    /* Camera preview */
-    #camera-container { display: none; margin-top: 1rem; }
-    video { width: 100%; border-radius: 8px; }
-    #capture-btn, #close-camera { display: inline-block; margin: 0.5rem; padding: 0.5rem 1rem; background-color: var(--accent-color); color: #fff; border: none; border-radius: 6px; cursor: pointer; }
-    #capture-btn:hover, #close-camera:hover { background-color: #ff5252; }
 
     #result { margin-top: 1rem; }
     .product-card { background: var(--bg-color); border: 1px solid var(--accent-color); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; text-align: center; }
@@ -67,57 +61,16 @@
 <body>
   <div class="container">
     <h1 class="approved-heading">Alma Approved</h1>
-    <div class="sub-heading">📷 Barcode & Nutrition</div>
+    <div class="sub-heading">Scan & Choose Healthy</div>
 
-    <button class="btn" id="open-camera">Take Photo</button>
-    <button class="btn" id="upload-btn">Upload from Gallery</button>
+    <button class="btn" id="upload-btn">Scan or upload barcode</button>
     <input type="file" id="file-upload" accept="image/*" />
-
-    <div id="camera-container">
-      <video id="video" autoplay playsinline></video>
-      <div>
-        <button id="capture-btn">Capture</button>
-        <button id="close-camera">Close</button>
-      </div>
-    </div>
 
     <div id="result"></div>
   </div>
   <script>
-    let stream;
-    const openCameraBtn = document.getElementById('open-camera');
-    const cameraContainer = document.getElementById('camera-container');
-    const video = document.getElementById('video');
-    const captureBtn = document.getElementById('capture-btn');
-    const closeCameraBtn = document.getElementById('close-camera');
     const uploadBtn = document.getElementById('upload-btn');
     const fileUpload = document.getElementById('file-upload');
-
-    openCameraBtn.addEventListener('click', async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        video.srcObject = stream;
-        cameraContainer.style.display = 'block';
-      } catch (err) {
-        alert('Cannot access camera: ' + err);
-      }
-    });
-
-    captureBtn.addEventListener('click', () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      canvas.toBlob(blob => handleFile(blob), 'image/jpeg');
-      stopCamera();
-    });
-
-    closeCameraBtn.addEventListener('click', stopCamera);
-    function stopCamera() {
-      cameraContainer.style.display = 'none';
-      if (stream) stream.getTracks().forEach(t => t.stop());
-    }
 
     uploadBtn.addEventListener('click', () => fileUpload.click());
     fileUpload.addEventListener('change', e => handleFile(e.target.files[0]));
@@ -154,15 +107,15 @@
               const letter = getLetterGrade(score);
               headingEl.textContent = score>=80 ? 'Alma approved! 👍' : "Alma doesn't approve! 👎";
               const nsImg = `https://static.openfoodfacts.org/images/misc/nutriscore-${letter.toLowerCase()}.svg`;
-              let html = `<div class=\"product-card\">`;
-              html += `<div class=\"nutriscore\">`;
-              html += `<img src=\"${nsImg}\" alt=\"${letter}\">`;
-              html += `<div class=\"score\">Score: ${score}/100</div>`;
-              html += `<div class=\"letter\">Grade: ${letter}</div>`;
+              let html = `<div class="product-card">`;
+              html += `<div class="nutriscore">`;
+              html += `<img src="${nsImg}" alt="${letter}">`;
+              html += `<div class="score">Score: ${score}/100</div>`;
+              html += `<div class="letter">Grade: ${letter}</div>`;
               html += `</div>`;
-              if(imgUrl) html += `<img class=\"product-image\" src=\"${imgUrl}\" alt=\"${name}\">`;
-              html += `<div class=\"product-details\"><h3>${name}</h3><p><strong>Barcode:</strong> ${code}</p></div>`;
-              html += `<div class=\"nutrition-facts\"><h4>Nutrition per 100g</h4><ul>`;
+              if(imgUrl) html += `<img class="product-image" src="${imgUrl}" alt="${name}">`;
+              html += `<div class="product-details"><h3>${name}</h3><p><strong>Barcode:</strong> ${code}</p></div>`;
+              html += `<div class="nutrition-facts"><h4>Nutrition per 100g</h4><ul>`;
               const facts = {
                 'Energy (kcal)': n['energy-kcal_100g'],
                 'Fat (g)': n['fat_100g'],
