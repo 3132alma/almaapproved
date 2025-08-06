@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Barcode Decoder & Nutrition Lookup</title>
+  <title>Alma Approved Barcode Nutrition Lookup</title>
   <!-- QuaggaJS for barcode decoding -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
   <style>
     :root {
-      --primary-color: #00b894; /* green */
-      --accent-color: #ff7675; /* pink */
+      --primary-color: #00b894;
+      --accent-color: #ff7675;
       --bg-color: #fdfdfd;
       --card-bg: #ffffff;
       --text-color: #333;
@@ -32,12 +32,18 @@
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
       text-align: center;
     }
-    h1 {
+    .approved-heading {
+      font-size: 2.5rem;
+      color: var(--accent-color);
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+    }
+    .sub-heading {
+      font-size: 1.25rem;
       color: var(--primary-color);
       margin-bottom: 1rem;
     }
     #file-input {
-      display: inline-block;
       margin: 1rem 0;
       padding: 0.5rem 1rem;
       background-color: var(--accent-color);
@@ -63,32 +69,37 @@
       max-width: 100%;
       border-radius: 8px;
       display: block;
-      margin: 0 auto;
+      margin: 0 auto 0.75rem;
     }
-    .product-details {
-      margin-top: 0.75rem;
-    }
-    .product-details h2 {
+    .product-details h3 {
       margin: 0.5rem 0;
       color: var(--text-color);
     }
     .nutriscore {
-      margin-top: 0.5rem;
+      margin-top: 0.75rem;
       text-align: center;
     }
     .nutriscore img {
       width: 80px;
+      margin-bottom: 0.25rem;
     }
     .nutriscore p {
       margin: 0.25rem 0;
       color: var(--primary-color);
       font-weight: bold;
     }
+    .calculated-score p {
+      margin-top: 0.5rem;
+      color: var(--primary-color);
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>📷 Barcode & Nutrition</h1>
+    <h1 class="approved-heading">Alma Approved</h1>
+    <div class="sub-heading">📷 Barcode & Nutrition</div>
     <input type="file" id="file-input" accept="image/*" />
     <div id="result"></div>
   </div>
@@ -119,7 +130,6 @@
           if (result && result.codeResult) {
             var code = result.codeResult.code;
 
-            // Fetch product data
             fetch('https://world.openfoodfacts.org/api/v0/product/' + code + '.json')
               .then(function(resp) { return resp.json(); })
               .then(function(data) {
@@ -133,17 +143,27 @@
                   var html = '<div class="product-card">';
                   if (imgUrl) html += '<img src="' + imgUrl + '" alt="' + name + '">';
                   html += '<div class="product-details">';
-                  html += '<h2>' + name + '</h2>';
+                  html += '<h3>' + name + '</h3>';
                   html += '<p><strong>Barcode:</strong> ' + code + '</p>';
-                  html += '</div>';
-                  html += '<div class="nutriscore">';
+                  html += '</div><div class="nutriscore">';
+
                   if (grade) {
                     var nsImg = 'https://static.openfoodfacts.org/images/misc/nutriscore-' + grade + '.svg';
                     html += '<img src="' + nsImg + '" alt="Nutri-Score ' + grade.toUpperCase() + '">';
                     html += '<p>Score: ' + (score !== undefined ? score : 'N/A') + '</p>';
+                  } else {
+                    // fallback calculation
+                    var nutriments = prod.nutriments || {};
+                    var sugar = parseFloat(nutriments['sugars_100g']) || 0;
+                    var satFat = parseFloat(nutriments['saturated-fat_100g']) || 0;
+                    var salt = parseFloat(nutriments['salt_100g']) || 0;
+                    var fiber = parseFloat(nutriments['fiber_100g']) || 0;
+                    var calcScore = Math.round(Math.max(0, Math.min(100, 100 - (sugar*2 + satFat*3 + salt*5 - fiber*2))));
+                    html += '<p>No official Nutri-Score found.</p>';
+                    html += '<div class="calculated-score"><p>🧮 Calculated Health Score: ' + calcScore + '</p></div>';
                   }
-                  html += '</div></div>';
 
+                  html += '</div></div>';
                   resultDiv.innerHTML = html;
                 } else {
                   resultDiv.innerHTML = '<p>❌ Product not found.</p>';
