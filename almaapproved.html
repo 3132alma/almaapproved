@@ -22,10 +22,16 @@
     .approved-heading { font-size: 2rem; font-family: Arial, sans-serif; font-weight: bold; color: var(--accent-color); margin-bottom: 0.5rem; }
     .sub-heading { font-size: 1.1rem; color: var(--primary-color); margin-bottom: 1rem; }
 
-    /* File input styled as button */
-    #file-input { display: none; }
-    #file-label { display: block; width: 100%; padding: 0.75rem; background-color: var(--accent-color); color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 1rem; text-align: center; }
-    #file-label:hover { background-color: #ff5252; }
+    /* Buttons */
+    .btn { display: block; width: 100%; padding: 0.75rem; background-color: var(--accent-color); color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 0.75rem; }
+    .btn:hover { background-color: #ff5252; }
+    input[type="file"] { display: none; }
+
+    /* Camera preview */
+    #camera-container { display: none; margin-top: 1rem; }
+    video { width: 100%; border-radius: 8px; }
+    #capture-btn, #close-camera { display: inline-block; margin: 0.5rem; padding: 0.5rem 1rem; background-color: var(--accent-color); color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    #capture-btn:hover, #close-camera:hover { background-color: #ff5252; }
 
     #result { margin-top: 1rem; }
     .product-card { background: var(--bg-color); border: 1px solid var(--accent-color); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; text-align: center; }
@@ -50,7 +56,7 @@
     @media (max-width: 600px) {
       .approved-heading { font-size: 1.6rem; }
       .sub-heading { font-size: 1rem; }
-      #file-label { font-size: 0.95rem; }
+      .btn { font-size: 0.95rem; }
       .nutriscore img { width: 100px; }
       .nutriscore .score { font-size: 1.3rem; }
       .nutriscore .letter { font-size: 1.5rem; }
@@ -62,11 +68,60 @@
   <div class="container">
     <h1 class="approved-heading">Alma Approved</h1>
     <div class="sub-heading">📷 Barcode & Nutrition</div>
-    <label for="file-input" id="file-label">Scan/Upload a barcode</label>
-    <input type="file" id="file-input" accept="image/*" capture="environment" />
+
+    <button class="btn" id="open-camera">Take Photo</button>
+    <button class="btn" id="upload-btn">Upload from Gallery</button>
+    <input type="file" id="file-upload" accept="image/*" />
+
+    <div id="camera-container">
+      <video id="video" autoplay playsinline></video>
+      <div>
+        <button id="capture-btn">Capture</button>
+        <button id="close-camera">Close</button>
+      </div>
+    </div>
+
     <div id="result"></div>
   </div>
   <script>
+    let stream;
+    const openCameraBtn = document.getElementById('open-camera');
+    const cameraContainer = document.getElementById('camera-container');
+    const video = document.getElementById('video');
+    const captureBtn = document.getElementById('capture-btn');
+    const closeCameraBtn = document.getElementById('close-camera');
+    const uploadBtn = document.getElementById('upload-btn');
+    const fileUpload = document.getElementById('file-upload');
+
+    openCameraBtn.addEventListener('click', async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = stream;
+        cameraContainer.style.display = 'block';
+      } catch (err) {
+        alert('Cannot access camera: ' + err);
+      }
+    });
+
+    captureBtn.addEventListener('click', () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(blob => handleFile(blob), 'image/jpeg');
+      stopCamera();
+    });
+
+    closeCameraBtn.addEventListener('click', stopCamera);
+    function stopCamera() {
+      cameraContainer.style.display = 'none';
+      if (stream) stream.getTracks().forEach(t => t.stop());
+    }
+
+    uploadBtn.addEventListener('click', () => fileUpload.click());
+    fileUpload.addEventListener('change', e => handleFile(e.target.files[0]));
+
     function getLetterGrade(score) {
       if (score >= 80) return 'A';
       if (score >= 60) return 'B';
@@ -75,8 +130,8 @@
       return 'E';
     }
 
-    document.getElementById('file-input').addEventListener('change', function(e) {
-      const file = e.target.files[0]; if (!file) return;
+    function handleFile(file) {
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = function() {
         Quagga.decodeSingle({ src: reader.result, numOfWorkers: 0, decoder: { readers: ['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader'] } }, function(result) {
@@ -86,7 +141,9 @@
             const code = result.codeResult.code;
             fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`).then(res => res.json()).then(data => {
               if (data.status !== 1) { resultDiv.innerHTML = '<p>❌ Product not found.</p>'; return; }
-              const prod = data.product; const name = prod.product_name || 'Unknown product'; const imgUrl = prod.image_url || '';
+              const prod = data.product;
+              const name = prod.product_name || 'Unknown product';
+              const imgUrl = prod.image_url || '';
               const n = prod.nutriments || {};
               let score = parseFloat(prod.nutriscore_score);
               if (isNaN(score)) {
@@ -97,20 +154,15 @@
               const letter = getLetterGrade(score);
               headingEl.textContent = score>=80 ? 'Alma approved! 👍' : "Alma doesn't approve! 👎";
               const nsImg = `https://static.openfoodfacts.org/images/misc/nutriscore-${letter.toLowerCase()}.svg`;
-
-              let html = `<div class="product-card">`;
-              // Nutriscore & Score above image
-              html += `<div class="nutriscore">`;
-              html += `<img src="${nsImg}" alt="${letter}">`;
-              html += `<div class="score">Score: ${score}/100</div>`;
-              html += `<div class="letter">Grade: ${letter}</div>`;
+              let html = `<div class=\"product-card\">`;
+              html += `<div class=\"nutriscore\">`;
+              html += `<img src=\"${nsImg}\" alt=\"${letter}\">`;
+              html += `<div class=\"score\">Score: ${score}/100</div>`;
+              html += `<div class=\"letter\">Grade: ${letter}</div>`;
               html += `</div>`;
-              // Product Image
-              if(imgUrl) html += `<img class="product-image" src="${imgUrl}" alt="${name}">`;
-              // Product details
-              html += `<div class="product-details"><h3>${name}</h3><p><strong>Barcode:</strong> ${code}</p></div>`;
-              // Nutrition facts
-              html += `<div class="nutrition-facts"><h4>Nutrition per 100g</h4><ul>`;
+              if(imgUrl) html += `<img class=\"product-image\" src=\"${imgUrl}\" alt=\"${name}\">`;
+              html += `<div class=\"product-details\"><h3>${name}</h3><p><strong>Barcode:</strong> ${code}</p></div>`;
+              html += `<div class=\"nutrition-facts\"><h4>Nutrition per 100g</h4><ul>`;
               const facts = {
                 'Energy (kcal)': n['energy-kcal_100g'],
                 'Fat (g)': n['fat_100g'],
@@ -121,9 +173,9 @@
                 'Protein (g)': n['proteins_100g'],
                 'Salt (g)': n['salt_100g']
               };
-              for(let key in facts) {
+              for (let key in facts) {
                 let val = facts[key];
-                if(val != null) html += `<li><strong>${key}:</strong> ${parseFloat(val).toFixed(1)}</li>`;
+                if (val != null) html += `<li><strong>${key}:</strong> ${parseFloat(val).toFixed(1)}</li>`;
               }
               html += `</ul></div></div>`;
               resultDiv.innerHTML = html;
@@ -134,7 +186,7 @@
         });
       };
       reader.readAsDataURL(file);
-    });
+    }
   </script>
 </body>
 </html>
