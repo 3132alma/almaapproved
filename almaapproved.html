@@ -147,10 +147,12 @@
                   html += '<p><strong>Barcode:</strong> ' + code + '</p>';
                   html += '</div><div class="nutriscore">';
 
-                  if (grade) {
+                  // Determine if official score is valid
+                  var validGrades = ['a','b','c','d','e'];
+                  if (validGrades.includes(grade) && typeof score === 'number') {
                     var nsImg = 'https://static.openfoodfacts.org/images/misc/nutriscore-' + grade + '.svg';
                     html += '<img src="' + nsImg + '" alt="Nutri-Score ' + grade.toUpperCase() + '">';
-                    html += '<p>Score: ' + (score !== undefined ? score : 'N/A') + '</p>';
+                    html += '<p>Score: ' + score + '</p>';
                   } else {
                     // fallback calculation
                     var nutriments = prod.nutriments || {};
@@ -158,8 +160,12 @@
                     var satFat = parseFloat(nutriments['saturated-fat_100g']) || 0;
                     var salt = parseFloat(nutriments['salt_100g']) || 0;
                     var fiber = parseFloat(nutriments['fiber_100g']) || 0;
-                    var calcScore = Math.round(Math.max(0, Math.min(100, 100 - (sugar*2 + satFat*3 + salt*5 - fiber*2))));
-                    html += '<p>No official Nutri-Score found.</p>';
+                    var calcScore = Math.round(
+                      Math.max(0,
+                        Math.min(100, 100 - (sugar*2 + satFat*3 + salt*5 - fiber*2))
+                      )
+                    );
+                    html += '<p>No official Nutri-Score available.</p>';
                     html += '<div class="calculated-score"><p>🧮 Calculated Health Score: ' + calcScore + '</p></div>';
                   }
 
