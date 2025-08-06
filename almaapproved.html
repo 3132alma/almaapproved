@@ -98,27 +98,15 @@
                 let apiScore = parseFloat(prod.nutriscore_score);
                 let apiGrade = prod.nutriscore_grade ? prod.nutriscore_grade.toUpperCase() : null;
                 const useApi = !isNaN(apiScore) && apiGrade && ['A','B','C','D','E'].includes(apiGrade);
-                let score;
-                if (useApi) {
-                  score = apiScore;
-                } else {
-                  // revised fallback calculation with adjusted weights
-                  const sugarVal = parseFloat(nutr['sugars_100g']) || 0;
-                  const satFatVal = parseFloat(nutr['saturated-fat_100g']) || 0;
-                  const saltVal = parseFloat(nutr['salt_100g']) || 0;
-                  const fiberVal = parseFloat(nutr['fiber_100g']) || 0;
-                  // calculate raw score: fiber bonus minus penalties
-                  const fiberPts = fiberVal * 3;
-                  const sugarPts = sugarVal * 1;
-                  const fatPts = satFatVal * 1.5;
-                  const saltPts = saltVal * 2;
-                  const raw = fiberPts - (sugarPts + fatPts + saltPts);
-                  // baseline at 50, adjust and clamp
-                  score = Math.round(Math.max(0, Math.min(100, 50 + raw)));
-                }
+                let score = useApi ? apiScore : Math.round(Math.max(0, Math.min(100,
+                  100 - (
+                    (parseFloat(nutr['sugars_100g']) || 0)*2 +
+                    (parseFloat(nutr['saturated-fat_100g']) || 0)*3 +
+                    (parseFloat(nutr['salt_100g']) || 0)*5 -
+                    (parseFloat(nutr['fiber_100g']) || 0)*2
+                  )
+                )));
                 const letter = useApi ? apiGrade : getLetterGrade(score);
-                const nsImg = `https://static.openfoodfacts.org/images/misc/nutriscore-${letter.toLowerCase()}.svg`;
-                // Render ? apiGrade : getLetterGrade(score);
                 const nsImg = `https://static.openfoodfacts.org/images/misc/nutriscore-${letter.toLowerCase()}.svg`;
                 // Render
                 let html = `<div class="product-card">`;
